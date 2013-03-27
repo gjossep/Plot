@@ -33,8 +33,9 @@ public class Plot implements Serializable {
 	private String owner;
 	
 	private int price;
+	private int sellprice;
 
-	public Plot(String world,double xloc1, double yloc1, double zloc1, double xloc2, double yloc2, double zloc2, int id, String owner, int price) {
+	public Plot(String world,double xloc1, double yloc1, double zloc1, double xloc2, double yloc2, double zloc2, int id, String owner, int price, int sellprice) {
 		this.world = world;
 		this.xloc1 = xloc1;
 		this.yloc1 = yloc1;
@@ -45,8 +46,11 @@ public class Plot implements Serializable {
 		this.id = id;
 		this.owner = owner;
 		this.price = price;
+		this.sellprice = sellprice;
 
 	}
+	
+	
 	
 	public boolean isBought() {
 		return bought;
@@ -62,6 +66,14 @@ public class Plot implements Serializable {
 	
 	public void setPrice(int newPrice) {
 		price = newPrice;
+	}
+	
+	public int getSellPrice() {
+		return sellprice;
+	}
+	
+	public void setSellPrice(int newPrice) {
+		sellprice = newPrice;
 	}
 	
 	public int getId() {

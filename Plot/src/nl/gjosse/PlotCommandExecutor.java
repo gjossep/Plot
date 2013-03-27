@@ -55,7 +55,45 @@ public class PlotCommandExecutor implements CommandExecutor {
 						    	Location min = selection.getMinimumPoint();
 						    	Location max = selection.getMaximumPoint();
 						    
-						    	Plot plot = new Plot(world.getName(),min.getX(), min.getY(), min.getZ(), max.getX(), max.getY(), max.getZ(), plugin.idlist, p.getName(), price);
+						    	Plot plot = new Plot(world.getName(),min.getX(), min.getY(), min.getZ(), max.getX(), max.getY(), max.getZ(), plugin.idlist, p.getName(), price, price/2);
+						    	addProtection(plot);
+						    	plugin.plots.add(plot);
+						    	
+						    	plugin.idlist++;
+						    
+						    	p.sendMessage(ChatColor.GREEN+"Plot Added! ID = "+ChatColor.GOLD+plot.getId());
+							    plugin.saveFiles();
+
+						    
+							} else {
+								p.sendMessage(ChatColor.RED+"You have no selection!");
+							}
+						}
+					} else if(args.length==3) {
+						if(sender instanceof Player) {
+							int price = 0;
+							try {
+								price = Integer.parseInt(args[1]);
+							} catch(Exception e) {
+								sender.sendMessage(ChatColor.RED+"Make sure that price is a number!");
+							}
+							
+							int sellprice = 0;
+							try {
+								sellprice = Integer.parseInt(args[2]);
+							} catch(Exception e) {
+								sender.sendMessage(ChatColor.RED+"Make sure that sell-price is a number!");
+							}
+							
+							Player p = (Player) sender;
+							p.sendMessage(ChatColor.GOLD+"Trying to add your selection as a plot!");
+							Selection selection = plugin.worldEdit.getSelection(p);
+							if (selection != null) {
+						    	World world = selection.getWorld();
+						    	Location min = selection.getMinimumPoint();
+						    	Location max = selection.getMaximumPoint();
+						    
+						    	Plot plot = new Plot(world.getName(),min.getX(), min.getY(), min.getZ(), max.getX(), max.getY(), max.getZ(), plugin.idlist, p.getName(), price, sellprice);
 						    	addProtection(plot);
 						    	plugin.plots.add(plot);
 						    	
@@ -70,18 +108,34 @@ public class PlotCommandExecutor implements CommandExecutor {
 							}
 						}
 					} else {
-						sender.sendMessage(ChatColor.RED+"Wrong Argument! Do /plot add price");
+						sender.sendMessage(ChatColor.RED+"Wrong Argument! Do /plot add [buyprice] [sellprice]");
 					}
 				}
 				
 				if(args[0].equalsIgnoreCase("invite") && plugin.permission.has(sender, "plot.basic")) {
 					if(args.length==2) {
 						String playername = args[1];
-						Player p;
+						Player p2 = null;
 						try{
-							p = Bukkit.getPlayer(playername.toLowerCase());
+							p2 = Bukkit.getPlayer(playername.toLowerCase());
 						} catch(Exception e) {
 							sender.sendMessage(ChatColor.RED+"Can't find player!");
+						}
+						
+						if(plugin.hasPlots(sender.getName())) {
+							Player p = (Player) sender;
+							if (plugin.checkIfInPlot(p)) {
+								Plot plot = plugin.getStandingPlot(p);
+								ApplicableRegionSet set = plugin.worldGuard.getRegionManager(Bukkit.getWorld(plot.getWorld())).getApplicableRegions(new Location(Bukkit.getWorld(plot.getWorld()), plot.getXloc1(), plot.getYloc1(), plot.getZloc1()));
+								for (ProtectedRegion region : set) {
+									if(set.size()==1) {
+									    DefaultDomain members = region.getMembers();
+										members.addPlayer(p2.getName());
+										region.setMembers(members);
+									}
+								}
+								
+							}
 						}
 						
 						
@@ -90,29 +144,8 @@ public class PlotCommandExecutor implements CommandExecutor {
 					}
 				}
 				
-				if(args[0].equalsIgnoreCase("border")) {
-					Player p = (Player) sender;
-					Selection selection = plugin.worldEdit.getSelection(p);
-					if (selection != null) {
-				    	World world = selection.getWorld();
-				    	Location min = selection.getMinimumPoint();
-				    	Location max = selection.getMaximumPoint();
-				    	
-				    	world.getBlockAt(min).setTypeId(1);
-				    	world.getBlockAt(max).setTypeId(1);
-				    	
-				    	for(int x = min.getBlockX(); x<= max.getBlockX(); x++) {
-				    		for(int z = min.getBlockZ(); z<=max.getBlockZ(); z++) {
-				    			if(x == 1 || z == 1) {
-				    				Block blockAt = world.getBlockAt(x, min.getBlockY(), z);
-				    				blockAt.setTypeId(1);
-				    			}
-				    		}
-				    	}
-					}
-				}
 				
-				if(args[0].equalsIgnoreCase("buy") && plugin.permission.has(sender, "plot.buy")) {
+				if(args[0].equalsIgnoreCase("buy") && plugin.permission.has(sender, "plot.basic")) {
 					if(args.length==2) {
 						int id = 0;
 						try {
@@ -160,7 +193,7 @@ public class PlotCommandExecutor implements CommandExecutor {
 					}
 				}
 				
-				if(args[0].equalsIgnoreCase("sell") && plugin.permission.has(sender, "plot.sell")) {
+				if(args[0].equalsIgnoreCase("sell") && plugin.permission.has(sender, "plot.basic")) {
 					if(plugin.hasPlots(sender.getName())) {
 						Player p = (Player) sender;
 						if (plugin.checkIfInPlot(p)) {
@@ -180,7 +213,7 @@ public class PlotCommandExecutor implements CommandExecutor {
 								            plugin.log.log(Level.SEVERE, null, ex);
 								        }
 								     
-								     plugin.addMoney(p, inplot.getPrice()/2, inplot.getId());
+								     plugin.addMoney(p, inplot.getSellPrice(), inplot.getId());
 								     plugin.plots.remove(inplot);
 								     plugin.plots.add(inplot);
 								     plugin.saveFiles();
@@ -192,6 +225,34 @@ public class PlotCommandExecutor implements CommandExecutor {
 					} else {
 						sender.sendMessage(ChatColor.RED+"You dont have any plots!");
 					}
+				}
+				
+				if(args[0].equalsIgnoreCase("check") && plugin.permission.has(sender, "plot.basic")) {
+					if(args.length==2) {
+						int id = 0;
+						try {
+							id = Integer.parseInt(args[1]);
+						} catch(Exception e) {
+							sender.sendMessage(ChatColor.RED+"Make sure that [ID] is a number!");
+						}
+						
+						Plot plot = searchPlots(id);
+						 Player p = (Player) sender;
+							if(plot!=null || !plot.isBought()) {
+								sender.sendMessage(ChatColor.GREEN+"This plot is for sale!");
+								sender.sendMessage(ChatColor.GREEN+"Buy-Price: "+ChatColor.GOLD+plot.getPrice());
+								sender.sendMessage(ChatColor.GREEN+"Sell-Price: "+ChatColor.GOLD+(plot.getSellPrice()));
+							} else {
+								sender.sendMessage(ChatColor.RED+"This plot is already bought!");
+							}
+						
+					} else {
+						sender.sendMessage(ChatColor.RED+"Wrong command. Do /plot check [ID]");
+					}
+				}
+				
+				if(args[0].equalsIgnoreCase("trust")) {
+					
 				}
 				
 			} else {
@@ -252,8 +313,11 @@ public class PlotCommandExecutor implements CommandExecutor {
 			region.setParent(plugin.worldGuard.getRegionManager(Bukkit.getWorld(plot.getWorld())).getRegion("__Global__"));
 			region.setFlag(DefaultFlag.GREET_MESSAGE, DefaultFlag.GREET_MESSAGE.parseInput(plugin.worldGuard, plot.getPlayer(), "You are entering a protected island area."));
 		    region.setFlag(DefaultFlag.FAREWELL_MESSAGE, DefaultFlag.FAREWELL_MESSAGE.parseInput(plugin.worldGuard, plot.getPlayer(), "You are leaving a protected island area."));
-		    region.setFlag(DefaultFlag.ENTRY, DefaultFlag.ENTRY.parseInput(plugin.worldGuard, plot.getPlayer(), "deny"));
+		    region.setFlag(DefaultFlag.ENTRY, DefaultFlag.ENTRY.parseInput(plugin.worldGuard, plot.getPlayer(), "-g nonmembers"));
+		    region.setFlag(DefaultFlag.CONSTRUCT, DefaultFlag.CONSTRUCT.parseInput(plugin.worldGuard, plot.getPlayer(), "-g owners"));
+		    region.setFlag(DefaultFlag.CHEST_ACCESS, DefaultFlag.CHEST_ACCESS.parseInput(plugin.worldGuard, plot.getPlayer(), "-g owners"));
 
+		    
 		    plugin.worldGuard.getRegionManager(Bukkit.getWorld(plot.getWorld())).addRegion(region);		
 		} catch (CircularInheritanceException e) {
 			plugin.log.log(Level.SEVERE, "Failed to add protection to plot! CircularInheritanceException");
