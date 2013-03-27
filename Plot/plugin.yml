@@ -1,0 +1,12 @@
+name: Plots
+main: nl.gjosse.PlotPlugin
+version: 0.5
+depend: [Vault]
+depend: [WorldEdit]
+depend: [WorldGuard]
+depend: [Vault]
+commands:
+   plot:
+      description: This command lets users buy plots
+      permission: plot.basic
+      usage: Do /plot to see the help page!
